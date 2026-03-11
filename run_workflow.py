@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Ensure project root is on path (required for Vercel serverless)
+_root = Path(__file__).resolve().parent
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
+
 from flask import Flask, request, jsonify
 
 from langgraph.graph import StateGraph, END
@@ -27,8 +35,22 @@ evaluation_workflow = graph.compile()
 app = Flask(__name__)
 
 
+@app.route("/")
+def index():
+    return jsonify({
+        "service": "Assignment Evaluator API",
+        "docs": "POST /evaluate with JSON body: {\"repo_url\": \"https://github.com/...\"}",
+    }), 200
+
+
 @app.route("/evaluate", methods=["POST"])
 def evaluate():
+    from Model.llm import llm
+    if llm is None:
+        return jsonify({
+            "error": "GROQ_API_KEY is not set. Add it in Vercel Project Settings → Environment Variables.",
+        }), 503
+
     data = request.get_json(silent=True) or {}
     repo_url = data.get("repo_url") or data.get("repo")
 
